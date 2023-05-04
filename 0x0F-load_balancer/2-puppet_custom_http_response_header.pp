@@ -1,25 +1,30 @@
-# automating nginx to return an HTTP Response HEADER X-Served-By
-exec { 'update_apt_cache':
-  command => '/usr/bin/apt-get update',
-  path    => '/usr/bin:/usr/sbin:/bin',
+# Setup New Ubuntu server with nginx
+# and add a custom HTTP header
+
+exec { 'update system':
+        command => '/usr/bin/apt-get update',
 }
 
 package { 'nginx':
-  ensure => installed,
+	ensure => 'installed',
+	require => Exec['update system']
 }
 
-$hostname = $facts['hostname']
-
-$file_content = "add_header X-Served-By ${hostname};\n"
-
-file_line { 'add_x_server_by_header':
-  path => '/etc/nginx/sites-available/default',
-  line => $file_content,
-  match => '^\s*server_name\s',
+file {'/var/www/html/index.html':
+	content => 'Hello World!'
 }
 
-service { 'nginx':
-  ensure => running,
-  enable => true,
-  subscribe => File_line['add_x_server_by_header'],
+exec {'redirect_me':
+	command => 'sed -i "24i\	rewrite ^/redirect_me https://th3-gr00t.tk/ permanent;" /etc/nginx/sites-available/default',
+	provider => 'shell'
+}
+
+exec {'HTTP header':
+	command => 'sed -i "25i\	add_header X-Served-By \$hostname;" /etc/nginx/sites-available/default',
+	provider => 'shell'
+}
+
+service {'nginx':
+	ensure => running,
+	require => Package['nginx']
 }
